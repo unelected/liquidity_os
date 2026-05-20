@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LiquidityOS — Treasury Dashboard</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app">
+
+<!-- ══════════════════════════════════════════════════════ NAV ══ -->
+<nav>
+  <div class="logo"><span class="logo-mark">●</span> LiquidityOS</div>
+
+  <div class="nav-tabs">
+    <button class="tab-btn active" data-tab="dashboard" onclick="App.showTab('dashboard')">
+      Дашборд
+    </button>
+    <button class="tab-btn" data-tab="forecast" onclick="App.showTab('forecast')">
+      Прогноз и Cash Flow
+    </button>
+    <button class="tab-btn" data-tab="alerts" onclick="App.showTab('alerts')">
+      Алерты
+      <span class="tab-count" id="tab-alerts-count">2</span>
+    </button>
+  </div>
+
+  <div class="nav-search">
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input id="search-input" type="text" placeholder="Поиск счётов, алертов…">
+      <button id="search-clear" aria-label="Очистить">×</button>
+    </div>
+    <div id="search-results"></div>
+  </div>
+
+  <button class="btn-opt" onclick="App.openOptModal()">Применить оптимизацию</button>
+</nav>
+
+<div class="pages">
+
+<!-- ════════════════════════════════════════ TAB: DASHBOARD ════ -->
+<div class="page active" id="page-dashboard">
+
+  <!-- Stats -->
+  <div class="grid-4">
+    <div class="stat-card">
+      <div class="stat-label">Общая ликвидность</div>
+      <div class="stat-value" id="stat-liquidity">—</div>
+      <div class="stat-hint ok">↑ $1.1M за сутки</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Замороженные резервы</div>
+      <div class="stat-value" id="stat-frozen">—</div>
+      <div class="stat-hint warn" id="stat-frozen-hint">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Риск кассового разрыва</div>
+      <div class="stat-value warn" id="stat-risk">—</div>
+      <div class="stat-hint warn" id="stat-risk-hint">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Овердрафты за 30 дней</div>
+      <div class="stat-value" id="stat-overdraft">—</div>
+      <div class="stat-hint ok" id="stat-overdraft-hint">—</div>
+    </div>
+  </div>
+
+  <!-- Accounts + Alerts summary -->
+  <div class="grid-32">
+
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Ностро-счета</span>
+        <div class="table-controls">
+          <select class="filter-select" id="account-filter" onchange="App.filterAccounts(this.value)">
+            <option value="all">Все статусы</option>
+            <option value="ok">Норма</option>
+            <option value="warning">Низкий</option>
+            <option value="danger">Риск</option>
+          </select>
+          <button class="btn-icon" onclick="App.exportAccountsCSV()">↓ CSV</button>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0">
+        <table>
+          <thead>
+            <tr>
+              <th>Валюта</th>
+              <th>Банк</th>
+              <th>Остаток</th>
+              <th>Уровень</th>
+              <th>Статус</th>
+            </tr>
+          </thead>
+          <tbody id="accounts-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Активные алерты</span>
+      </div>
+      <div class="card-body" style="padding:12px 14px" id="dash-alerts"></div>
+    </div>
+
+  </div>
+
+  <!-- Chart + quick forecast -->
+  <div class="grid-2">
+
+    <div class="card">
+      <div class="card-head"><span class="card-title">Cash Flow — 7 дней</span></div>
+      <div class="card-body">
+        <div class="chart-wrap" id="cashflow-chart"></div>
+        <div class="chart-legend">
+          <span class="l-in">Входящие</span>
+          <span class="l-out">Исходящие</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-title">Прогноз — 5 дней</span></div>
+      <div class="card-body" style="padding:0">
+        <table>
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>Обязательства</th>
+              <th>Поступления</th>
+              <th>Канал</th>
+              <th>Прогноз</th>
+            </tr>
+          </thead>
+          <tbody id="forecast-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- /page-dashboard -->
+
+
+<!-- ══════════════════════════════════════ TAB: FORECAST ════ -->
+<div class="page" id="page-forecast">
+
+  <div class="grid-32">
+    <div class="card">
+      <div class="card-head"><span class="card-title">Cash Flow — последние 7 дней</span></div>
+      <div class="card-body">
+        <div class="chart-wrap" id="cashflow-chart-2"></div>
+        <div class="chart-legend">
+          <span class="l-in">Входящие</span>
+          <span class="l-out">Исходящие</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">Задержки клиринга</span></div>
+      <div class="card-body" style="padding:0">
+        <table>
+          <thead>
+            <tr><th>Система</th><th>Срок</th><th>Примечание</th></tr>
+          </thead>
+          <tbody id="delays-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="card-title">Прогноз ликвидности — следующие 5 дней</span></div>
+    <div class="card-body" style="padding:0">
+      <table>
+        <thead>
+          <tr>
+            <th>Дата</th>
+            <th>Обязательства</th>
+            <th>Ожид. поступления</th>
+            <th>Канал</th>
+            <th>Прогноз</th>
+          </tr>
+        </thead>
+        <tbody id="forecast-tbody-2"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="card-title">Стресс-тест сценариев</span></div>
+    <div class="card-body">
+      <div class="sc-grid">
+        <button class="sc-btn" data-sc="swift"   onclick="App.runScenario('swift')">SWIFT задержка +3 дня</button>
+        <button class="sc-btn" data-sc="volume"  onclick="App.runScenario('volume')">Объём транзакций ×2</button>
+        <button class="sc-btn" data-sc="holiday" onclick="App.runScenario('holiday')">Банковский праздник EU</button>
+        <button class="sc-btn" data-sc="fx"      onclick="App.runScenario('fx')">EUR/USD −5%</button>
+      </div>
+      <div class="sc-result" id="sc-result">
+        <span class="muted-text">Выберите сценарий для симуляции.</span>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page-forecast -->
+
+
+<!-- ════════════════════════════════════════ TAB: ALERTS ════ -->
+<div class="page" id="page-alerts">
+
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Алерты</span>
+      <div class="alert-filter-row">
+        <button class="alert-filter-btn active" data-filter="all"     onclick="App.filterAlerts('all')">Все</button>
+        <button class="alert-filter-btn"         data-filter="danger"  onclick="App.filterAlerts('danger')">Критические</button>
+        <button class="alert-filter-btn"         data-filter="warning" onclick="App.filterAlerts('warning')">Внимание</button>
+        <button class="alert-filter-btn"         data-filter="ok"      onclick="App.filterAlerts('ok')">Норма</button>
+      </div>
+    </div>
+    <div id="alerts-list"></div>
+  </div>
+
+</div><!-- /page-alerts -->
+
+</div><!-- /pages -->
+</div><!-- /app -->
+
+
+<!-- ══════════════════════════════════════ MODAL: OPT ════ -->
+<div class="modal-overlay" id="opt-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Оптимизация ликвидности</div>
+      <button class="modal-close" onclick="App.closeModal('opt-modal')">×</button>
+    </div>
+    <div class="modal-sub">Система рассчитала перераспределение для устранения дефицита и снижения замороженных резервов. Подтвердите выполнение.</div>
+    <div class="opt-steps" id="opt-steps"></div>
+    <div class="modal-log" id="opt-log"></div>
+    <div class="modal-actions" id="opt-actions">
+      <button class="btn-secondary" onclick="App.closeModal('opt-modal')">Отмена</button>
+      <button class="btn-primary"   onclick="App.confirmOptimization()">Подтвердить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════ MODAL: ACCOUNT DETAIL ════ -->
+<div class="modal-overlay" id="account-modal">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="dm-title">Счёт</div>
+        <span class="detail-badge" id="dm-status" style="margin-top:4px;display:inline-block"></span>
+      </div>
+      <button class="modal-close" onclick="App.closeModal('account-modal')">×</button>
+    </div>
+    <div class="detail-rows" id="dm-rows" style="margin-top:16px"></div>
+    <div class="modal-actions" style="margin-top:20px">
+      <button class="btn-secondary" onclick="App.closeModal('account-modal')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ MODAL: ALERT DETAIL ════ -->
+<div class="modal-overlay" id="alert-modal">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="am-title">Алерт</div>
+        <span class="detail-badge" id="am-status" style="margin-top:4px;display:inline-block"></span>
+      </div>
+      <button class="modal-close" onclick="App.closeModal('alert-modal')">×</button>
+    </div>
+    <div class="detail-rows" id="am-rows" style="margin-top:16px"></div>
+    <div class="modal-actions" style="margin-top:20px">
+      <button class="btn-secondary" onclick="App.closeModal('alert-modal')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- Duplicate chart target for forecast tab (rendered by JS) -->
+<script>
+  // We need a second chart target. Proxy: after app boots, clone chart.
+  document.addEventListener('DOMContentLoaded', () => {
+    // chart-2 and forecast-tbody-2 will be populated by app.js
+  });
+</script>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
